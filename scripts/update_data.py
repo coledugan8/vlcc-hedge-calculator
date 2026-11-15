@@ -18,18 +18,43 @@ CONFIG = os.path.join(ROOT, "config.json")
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd={start}"
 
 
+FRED_API = ("https://api.stlouisfed.org/fred/series/observations"
+            "?series_id={sid}&api_key={key}&file_type=json&observation_start={start}")
+
+
+def _get(url):
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (vlcc-hedge-calculator; +https://github.com)",
+        "Accept": "text/csv,application/json,*/*"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return r.read().decode("utf-8")
+
+
 def fetch_series(sid, start, tries=3):
-    """Return {YYYY-MM-DD: float} for a FRED series, skipping missing values ('.')."""
-    url = FRED_CSV.format(sid=sid, start=start)
+    """Return {YYYY-MM-DD: float} for a FRED series, skipping missing values ('.').
+
+    Uses the official FRED API when the FRED_API_KEY secret is set (most reliable),
+    otherwise the public CSV download.
+    """
+    key = os.environ.get("FRED_API_KEY", "").strip()
     last_err = None
     for attempt in range(tries):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "vlcc-hedge-calculator/1.0"})
-            with urllib.request.urlopen(req, timeout=60) as r:
-                text = r.read().decode("utf-8")
-            return parse_fred_csv(text, sid)
+            if key:
+                js = json.loads(_get(FRED_API.format(sid=sid, key=key, start=start)))
+                if "observations" not in js:
+                    raise RuntimeError(js.get("error_message", "unexpected FRED API response"))
+                out = {}
+                for o in js["observations"]:
+                    try:
+                        out[o["date"]] = float(o["value"])
+                    except ValueError:
+                        pass
+                return out
+            return parse_fred_csv(_get(FRED_CSV.format(sid=sid, start=start)), sid)
         except Exception as e:  # network hiccup: wait and retry
             last_err = e
+            print(f"  {sid}: attempt {attempt + 1} failed: {e}", file=sys.stderr)
             time.sleep(5 * (attempt + 1))
     raise RuntimeError(f"Could not download {sid}: {last_err}")
 
