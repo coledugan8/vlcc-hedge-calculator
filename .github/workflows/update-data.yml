@@ -28,6 +28,8 @@ jobs:
 
       - name: Fetch latest data from FRED
         continue-on-error: true   # if FRED is down, keep publishing yesterday's data
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python scripts/update_data.py
 
       - name: Save new data to the repository
