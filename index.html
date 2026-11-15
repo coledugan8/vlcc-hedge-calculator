@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VLCC Freight Hedging Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#0b1d2e;--deep:#13304a;--surface:#fcfcfb;--panel:#ffffff;--line:#e2e0da;
+  --ink:#0b0b0b;--ink2:#52514e;--muted:#7a7873;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;
+  --pos:#2a78d6;--neg:#e34948;--mid:#f0efec;
+  --good:#0ca30c;--warn:#fab219;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"IBM Plex Sans",system-ui,sans-serif;background:var(--surface);color:var(--ink);line-height:1.55}
+.mono{font-family:"IBM Plex Mono",monospace}
+a{color:var(--s1)}
+nav{position:sticky;top:0;z-index:20;background:var(--navy);display:flex;gap:1.1rem;flex-wrap:wrap;align-items:center;padding:.7rem 1.5rem}
+nav .brand{color:#fff;font-weight:700;margin-right:auto}
+nav a{color:#b9cbd6;text-decoration:none;font-size:.88rem}
+nav a:hover{color:#fff}
+header{background:linear-gradient(180deg,var(--navy),var(--deep));color:#fff;padding:3rem 1.5rem 2.5rem}
+header .tag{color:#ff9d76;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}
+header h1{margin:.4rem 0 .6rem;font-size:clamp(1.9rem,4vw,2.9rem);line-height:1.15}
+header p{margin:0;max-width:66ch;color:#cddbe3}
+.wrap{max-width:1180px;margin:0 auto}
+.strip{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.2rem}
+.strip .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:.4rem .7rem;font-size:.82rem;color:#cddbe3}
+.strip .chip b{color:#fff;font-family:"IBM Plex Mono",monospace;font-weight:600}
+.strip .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:#0ca30c;margin-right:.35rem;vertical-align:1px}
+.banner.info{background:#0f3a5c;border-color:#5598e7;color:#d4e6fb}
+.banner{display:none;margin-top:1.2rem;background:#3b2a07;border:1px solid #fab219;color:#ffe2a6;padding:.6rem .9rem;border-radius:8px;font-size:.9rem;max-width:760px}
+.banner.show{display:block}
+section{padding:2.6rem 1.5rem;border-bottom:1px solid var(--line)}
+h2{font-size:1.5rem;margin:0 0 .3rem}
+h3{font-size:1.05rem;margin:0 0 .4rem}
+.lead{color:var(--ink2);max-width:72ch;margin:0 0 1.4rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.3rem}
+.decide{display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:1.4rem}
+@media(max-width:860px){.decide{grid-template-columns:1fr}}
+label.field{display:block;margin-bottom:1rem}
+label.field span.t{display:flex;justify-content:space-between;font-weight:600;font-size:.92rem}
+label.field small{display:block;color:var(--muted);font-size:.8rem;margin-top:.15rem}
+input[type=range]{width:100%;accent-color:var(--s1)}
+input[type=number],input[type=text],input[type=month],input[type=password],select,textarea{font:inherit;font-size:.92rem;width:100%;padding:.45rem .6rem;border:1px solid var(--line);border-radius:7px;background:#fff}
+textarea{font-family:"IBM Plex Mono",monospace;font-size:.8rem;min-height:110px}
+.probs{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.probs label{font-size:.78rem;color:var(--ink2)}
+details{margin-top:.5rem;border-top:1px solid var(--line);padding-top:.7rem}
+summary{cursor:pointer;font-weight:600;font-size:.92rem}
+.scen-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:.4rem .5rem;align-items:center;font-size:.82rem;margin-top:.6rem}
+.scen-grid b{font-size:.75rem;color:var(--muted);font-weight:600}
+.verdict{border-radius:12px;padding:1.4rem 1.5rem;color:#fff;background:var(--deep)}
+.verdict .k{font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:#a9c0cd}
+.verdict .big{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:700;margin:.2rem 0 .4rem;display:flex;align-items:center;gap:.6rem}
+.verdict .why{color:#d6e2e9;max-width:70ch}
+.verdict .note{margin-top:.8rem;padding:.6rem .8rem;border-radius:8px;background:rgba(255,255,255,.08);font-size:.9rem;color:#e9f0f3}
+.pill{display:inline-block;font-size:.75rem;font-weight:700;padding:.15rem .55rem;border-radius:999px;background:#fff;color:var(--deep)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.8rem;margin-top:1rem}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem}
+.stat .l{font-size:.78rem;color:var(--ink2)}
+.stat .v{font-size:1.35rem;font-weight:700;font-family:"IBM Plex Mono",monospace;margin-top:.15rem}
+.stat .s{font-size:.78rem;color:var(--muted)}
+.chartbox{position:relative;height:360px}
+.chartbox.sm{height:260px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem}
+@media(max-width:860px){.two{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:right;padding:.5rem .6rem;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--ink2);font-weight:600;font-size:.8rem}
+td.num{font-family:"IBM Plex Mono",monospace}
+.pos{color:#1c5cab}.neg{color:#b42f2e}
+.scroll{overflow-x:auto}
+.map{display:grid;gap:3px;font-size:.72rem}
+.map .cell{padding:.45rem .2rem;text-align:center;border-radius:4px;font-family:"IBM Plex Mono",monospace;line-height:1.2;cursor:default}
+.map .cell.cur{outline:3px solid var(--ink);outline-offset:-3px}
+.map .hdr{color:var(--ink2);text-align:center;font-weight:600;padding:.3rem 0}
+.legend-row{display:flex;gap:1.2rem;flex-wrap:wrap;font-size:.82rem;color:var(--ink2);margin-top:.8rem;align-items:center}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:.35rem}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem}
+.rule{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--s1);border-radius:10px;padding:1rem 1.1rem}
+.rule .now{margin-top:.6rem;font-size:.86rem;background:var(--mid);border-radius:6px;padding:.5rem .65rem}
+.btn{font:inherit;font-size:.9rem;font-weight:600;background:var(--s1);color:#fff;border:none;border-radius:8px;padding:.55rem 1rem;cursor:pointer}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.status{font-size:.86rem;margin-top:.6rem;color:var(--ink2);min-height:1.2em}
+.status.err{color:#b42f2e}.status.ok{color:#08780a}
+.pending td input{width:110px}
+.gloss dt{font-weight:600;margin-top:.7rem}
+.gloss dd{margin:.1rem 0 0;color:var(--ink2)}
+footer{background:var(--navy);color:#9fb3bf;padding:1.6rem 1.5rem;font-size:.85rem}
+.tabbtn{font:inherit;font-size:.82rem;background:none;border:1px solid var(--line);border-radius:999px;padding:.25rem .8rem;cursor:pointer;color:var(--ink2)}
+.tabbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+</style>
+</head>
+<body>
+<nav>
+  <span class="brand">⚓ VLCC Hedge Calculator</span>
+  <a href="#decide">Decision</a><a href="#forecast">Forecast</a><a href="#map">Hedge map</a>
+  <a href="#guide">When to hedge</a><a href="#model">Model check</a><a href="#data">Live data</a><a href="#about">About</a>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div class="tag mono">MARA 342 Maritime Finance · Group Project</div>
+    <h1>VLCC Freight Hedging Calculator</h1>
+    <p>An oil trader needs one Very Large Crude Carrier for the next 12 months. Should they <b>lock in a 12-month time charter now</b> (hedge) or <b>stay on the spot market</b>? This tool forecasts VLCC earnings from oil-market drivers and prices the trade-off.</p>
+    <div class="strip" id="strip"></div>
+    <div class="banner" id="simBanner">⚠ Using the workbook's <b>simulated</b> data. Results show how the model works, not what the real market did. The live data file was not found (it appears after the first scheduled update runs).</div>
+  </div>
+</header>
+
+<section id="decide">
+  <div class="wrap">
+    <h2>The decision</h2>
+    <p class="lead">Change the lock-in rate and how likely you think each oil scenario is. Everything on the page updates instantly.</p>
+    <div class="decide">
+      <div class="panel">
+        <label class="field">
+          <span class="t">12-month time-charter rate <span class="mono" id="tcOut"></span></span>
+          <input type="range" id="tc" min="20000" max="90000" step="500">
+          <small>The broker quote or TD3C FFA price you could lock in today ($/day).</small>
+        </label>
+        <div style="font-weight:600;font-size:.92rem;margin-bottom:.3rem">Scenario probabilities <span class="mono" id="probSum" style="font-weight:400;font-size:.8rem"></span></div>
+        <div class="probs">
+          <label>Oil falls<input type="number" id="p0" min="0" max="100" step="5"></label>
+          <label>Base case<input type="number" id="p1" min="0" max="100" step="5"></label>
+          <label>Oil rises<input type="number" id="p2" min="0" max="100" step="5"></label>
+        </div>
+        <small style="color:var(--muted);font-size:.8rem">In %. Must add up to 100.</small>
+        <details>
+          <summary>Advanced model settings</summary>
+          <div class="scen-grid">
+            <b>Scenario</b><b>Brent / month</b><b>Brent–WTI $</b>
+            <span>Oil falls</span><input type="number" id="c0" step="0.5"><input type="number" id="s0" step="0.5">
+            <span>Base case</span><input type="number" id="c1" step="0.5"><input type="text" id="s1" disabled>
+            <span>Oil rises</span><input type="number" id="c2" step="0.5"><input type="number" id="s2" step="0.5">
+          </div>
+          <small style="display:block;color:var(--muted);font-size:.78rem;margin:.3rem 0 .9rem">Brent change in % per month. The base-case spread is the historical average.</small>
+          <label class="field" id="anchorWrap" style="display:none"><span class="t">Freight proxy scale</span><input type="number" id="anchor" step="1000">
+            <small>The live freight series is a price index, not $/day. It is scaled so its average over the data equals this many $/day. This is an assumption: the hedge decision is sensitive to it.</small></label>
+          <label class="field"><span class="t">Uncertainty band</span>
+            <select id="z"><option value="1.645">90% (z = 1.645)</option><option value="1.96">95% (z = 1.96)</option></select></label>
+          <label class="field"><span class="t">Rate floor ($/day)</span><input type="number" id="floor" step="1000">
+            <small>Forecasts never go below this (about operating cost).</small></label>
+          <label class="field"><span class="t">Training period ends</span><input type="month" id="trainEnd">
+            <small>Months up to here build the regression; later months test it.</small></label>
+          <button class="btn ghost" id="resetInputs" type="button">Reset to workbook inputs</button>
+        </details>
+      </div>
+      <div>
+        <div class="verdict" id="verdict"></div>
+        <div class="stats" id="stats"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="forecast">
+  <div class="wrap">
+    <h2>12-month freight forecast</h2>
+    <p class="lead">Recent VLCC earnings and the model's forecast under three oil scenarios. The shaded band is the base-case uncertainty range. The gray line is the time-charter rate: when the forecast sits above it, locking in saves money.</p>
+    <div class="row" style="margin-bottom:.6rem"><button class="tabbtn on" data-view="chart">Chart</button><button class="tabbtn" data-view="table">Table</button></div>
+    <div class="panel" id="fcChartWrap"><div class="chartbox"><canvas id="fcChart"></canvas></div></div>
+    <div class="panel scroll" id="fcTableWrap" style="display:none"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What locking in saves (or costs) in each scenario</h2>
+    <p class="lead">Saving = spot cost for the year − time-charter cost. <span class="pos">Blue</span> means the time charter is cheaper; <span class="neg">red</span> means staying spot is cheaper.</p>
+    <div class="two">
+      <div class="panel"><div class="chartbox sm"><canvas id="savChart"></canvas></div></div>
+      <div class="panel scroll" id="hedgeTable"></div>
+    </div>
+  </div>
+</section>
+
+<section id="map">
+  <div class="wrap">
+    <h2>Hedge map: which oil-market situations call for a hedge?</h2>
+    <p class="lead">Each cell runs the full 12-month forecast for one oil-market situation, then compares the average spot rate with your time-charter rate. Rows are how fast Brent moves each month; columns are the Brent–WTI spread. The outlined cells are closest to your three scenarios.</p>
+    <div class="panel scroll"><div class="map" id="hedgeMap"></div>
+      <div class="legend-row">
+        <span><span class="sw" style="background:#2a78d6"></span><b>Lock</b> — the time charter is cheaper (hedge)</span>
+        <span><span class="sw" style="background:#e34948"></span><b>Spot</b> — the spot market is cheaper</span>
+        <span>Cell value = saving from locking in, $ millions per year</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="guide">
+  <div class="wrap">
+    <h2>When should you hedge?</h2>
+    <p class="lead">Rules of thumb drawn from the model. Each card also says what it means with today's inputs.</p>
+    <div class="rules" id="rules"></div>
+  </div>
+</section>
+
+<section id="model">
+  <div class="wrap">
+    <h2>Model check</h2>
+    <p class="lead">The forecast is a linear regression: Rate(t) = a + b·Rate(t−1) + c·Brent%chg(t−1) + d·Spread(t−1), fitted on the training months only and tested on months it never saw.</p>
+    <div class="two">
+      <div class="panel scroll" id="coefTable"></div>
+      <div class="panel scroll" id="accTable"></div>
+    </div>
+    <div class="panel" style="margin-top:1.4rem">
+      <h3>Out-of-sample test: one-month-ahead forecasts vs actual</h3>
+      <div class="chartbox"><canvas id="testChart"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<section id="data">
+  <div class="wrap">
+    <h2>Live data</h2>
+    <p class="lead" id="dataLead"></p>
+    <div class="stats" id="dataStats" style="margin-top:0;margin-bottom:1.4rem"></div>
+    <div class="two">
+      <div class="panel">
+        <h3>Where the numbers come from</h3>
+        <table id="srcTable"></table>
+        <p style="font-size:.84rem;color:var(--ink2);margin-bottom:0">A scheduled job refreshes these every morning. Monthly government data is published with a lag of about one month for oil and two months for the freight index, so the newest month appears once it is released.</p>
+      </div>
+      <div class="panel">
+        <h3>Try your own data</h3>
+        <p style="font-size:.88rem;color:var(--ink2);margin-top:0">Have real VLCC earnings (e.g. TD3C TCE from Clarksons through the TAMU library)? Upload or paste a CSV in the workbook's Data-sheet layout: <span class="mono">date, vlcc_tce, brent, wti</span>. It applies in this browser tab only.</p>
+        <div class="row"><input type="file" id="csvFile" accept=".csv,text/csv" style="width:auto"><button class="btn ghost" id="pasteToggle" type="button">Paste instead</button><button class="btn ghost" id="resetData" type="button">Back to live data</button></div>
+        <div id="pasteBox" style="display:none;margin-top:.8rem"><textarea id="csvText" placeholder="2015-01-01,30000,50,46&#10;2015-02-01,31800,51.7,47.31"></textarea><button class="btn" id="loadPaste" type="button" style="margin-top:.5rem">Load pasted data</button></div>
+        <div class="status" id="csvStatus"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap two">
+    <div>
+      <h2>Key terms</h2>
+      <dl class="gloss">
+        <dt>VLCC</dt><dd>Very Large Crude Carrier, a tanker carrying about 2 million barrels of crude.</dd>
+        <dt>TCE (time-charter equivalent)</dt><dd>A ship's voyage earnings converted to dollars per day so routes can be compared.</dd>
+        <dt>Time charter</dt><dd>Hiring a ship for a fixed period at a fixed daily rate. For a charterer this is the hedge: the cost is known in advance.</dd>
+        <dt>Spot market</dt><dd>Hiring ships voyage by voyage at whatever the market rate is at the time.</dd>
+        <dt>FFA (forward freight agreement)</dt><dd>A financial contract settled against a freight index such as TD3C (Middle East Gulf to China). Another way to lock in a freight rate.</dd>
+        <dt>Contango</dt><dd>When future oil prices exceed today's price, making it profitable to store oil at sea, which takes tankers out of service and pushes rates up.</dd>
+      </dl>
+    </div>
+    <div>
+      <h2>Limitations</h2>
+      <ul style="color:var(--ink2);padding-left:1.1rem">
+        <li>A linear model with three drivers. It ignores fleet supply, sanctions, OPEC+ decisions, seasonality and geopolitical shocks.</li>
+        <li>Only one-month-ahead accuracy is tested; 12-month forecasts are recursive and much less certain.</li>
+        <li>The uncertainty band assumes roughly normal errors; real freight shocks are fat-tailed.</li>
+        <li>The spot vs time-charter comparison ignores voyage costs, off-hire and counterparty risk.</li>
+        <li>The live freight series is the U.S. deep-sea freight producer price index, a free proxy covering all deep-sea shipping, not VLCCs alone, and scaled to $/day by assumption.</li>
+        <li>This page reproduces the group's Excel workbook; results match it when the data and inputs match.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">VLCC Tanker Freight &amp; Oil Forecasting Model · MARA 342 Maritime Finance, Texas A&amp;M University · Educational project, not investment advice.</div></footer>
+<script>
+const SAMPLE=[["2015-01",30000,50,46],["2015-02",31800,51.7,47.31],["2015-03",32390,56.34,54.69],["2015-04",21230,58.03,53.43],["2015-05",21090,66.01,61.95],["2015-06",15650,56.97,54.05],["2015-07",20580,62.81,59.17],["2015-08",17190,63.82,59.26],["2015-09",21590,62.21,57.9],["2015-10",28400,62.09,57.77],["2015-11",26290,60.89,56.55],["2015-12",35430,66.28,62.42],["2016-01",42860,67.24,64.12],["2016-02",34420,74.6,69.46],["2016-03",28150,76.84,72.2],["2016-04",30600,87.95,82.2],["2016-05",27860,94.23,89.27],["2016-06",27310,86.49,84.57],["2016-07",22990,79.98,76.38],["2016-08",29280,71.32,67.18],["2016-09",35800,74.25,71.73],["2016-10",25020,73.42,71.91],["2016-11",27930,68.83,67.81],["2016-12",23760,68.33,67.4],["2017-01",16660,67.35,65.74],["2017-02",20000,67.81,64.23],["2017-03",23510,69.5,66.07],["2017-04",27650,67.98,64.05],["2017-05",29010,73.26,70.17],["2017-06",23910,71.87,69.27],["2017-07",23300,71.87,67.93],["2017-08",33960,66.58,62.93],["2017-09",34200,59.17,54.67],["2017-10",23320,61.94,57.06],["2017-11",28240,54.61,49.1],["2017-12",47230,52.53,46.81],["2018-01",49000,48.57,42.62],["2018-02",81850,47.96,42.22],["2018-03",86760,49.69,46.25],["2018-04",53600,49.1,43.62],["2018-05",52700,49.68,45.2],["2018-06",51960,51.18,45.84],["2018-07",52020,48.79,43.17],["2018-08",52320,46.75,40.91],["2018-09",53560,44.74,37.17],["2018-10",51360,43.46,37.21],["2018-11",55620,41.85,35.93],["2018-12",68100,40.07,33.41],["2019-01",84680,39.68,33.53],["2019-02",65360,36.87,30.46],["2019-03",72350,37.83,33.95],["2019-04",60190,37.74,33.41],["2019-05",48140,38.94,35.42],["2019-06",38330,38.03,34.1],["2019-07",34280,38.4,36.62],["2019-08",28520,39.47,36.64],["2019-09",24840,38.26,33.37],["2019-10",31700,42.57,36.84],["2019-11",28950,42.89,38.81],["2019-12",25110,45.09,41.27],["2020-01",23770,48.54,43.82],["2020-02",21580,48.53,44.41],["2020-03",23990,36.61,33.01],["2020-04",86280,23.36,19.7],["2020-05",92730,25.57,20.74],["2020-06",55710,24.72,19.05],["2020-07",41560,24.23,19.93],["2020-08",43230,24.89,19.64],["2020-09",37420,22.47,18.68],["2020-10",34560,22.54,20.17],["2020-11",26890,25.43,24.08],["2020-12",16170,23.72,21.56],["2021-01",28480,27.2,25.82],["2021-02",20510,24.17,23.67],["2021-03",18830,24.95,24.28],["2021-04",10380,23.96,23.46],["2021-05",14220,26.21,25.44],["2021-06",12710,26.77,25.65],["2021-07",19430,27.92,25.83],["2021-08",21840,26.02,22.91],["2021-09",17930,27.6,23.43],["2021-10",19910,26.91,22.18],["2021-11",30760,29.92,24.24],["2021-12",34360,30.37,24.74],["2022-01",36080,33.43,28.79],["2022-02",29580,32.9,26.95],["2022-03",39580,46.23,41.89],["2022-04",22880,50.39,46.95],["2022-05",22860,46.54,42.36],["2022-06",24560,48.3,44.56],["2022-07",24350,48.86,44.4],["2022-08",23340,47.37,44.22],["2022-09",18970,46.55,41.33],["2022-10",20730,49.81,44.56],["2022-11",34190,53.54,47.82],["2022-12",30880,56.31,50.07],["2023-01",35580,58.48,52.74],["2023-02",45970,59.17,55.31],["2023-03",34090,63.32,59],["2023-04",29290,63.69,58.63],["2023-05",33180,68.04,63.1],["2023-06",41150,64.62,61.05],["2023-07",36810,65.2,62.45],["2023-08",30350,57.16,54.34],["2023-09",32510,57.09,55.64],["2023-10",30110,56.81,54.55],["2023-11",24230,58.19,54.83],["2023-12",20950,55.37,50.37],["2024-01",26270,62.86,58.19],["2024-02",36220,66.02,61.33],["2024-03",33730,62.47,56.91],["2024-04",51230,67.39,62.02],["2024-05",42790,78.99,73.12],["2024-06",30370,87.32,82.04],["2024-07",31080,75.46,70.83],["2024-08",39940,66.84,62.31],["2024-09",44960,65.97,60.56],["2024-10",38820,69.39,65.34],["2024-11",31910,73.77,70.61],["2024-12",35830,69.34,65.74],["2025-01",51150,77.67,73.68],["2025-02",39540,67.88,64.65],["2025-03",42200,66.59,62.9],["2025-04",43550,72.71,68.63],["2025-05",31970,75.24,71.53],["2025-06",37810,81.85,79.11],["2025-07",32580,80.06,76.19],["2025-08",43090,76.73,73.38],["2025-09",30190,87.58,83.6],["2025-10",35710,90.62,86.63],["2025-11",29290,87.87,84.04],["2025-12",46880,86.82,82.74],["2026-01",46500,86.01,80.67],["2026-02",42080,83.67,77.19],["2026-03",50080,92.65,84.16],["2026-04",46450,83.9,76.26],["2026-05",74980,86.11,78.9],["2026-06",72890,90.73,82.62],["2026-07",85960,81.65,74.7],["2026-08",96580,92.62,86.49],["2026-09",60760,95.16,88.55],["2026-10",55610,79.22,72.07]];
+// VLCC model engine: mirrors the Excel workbook (Model, Regression, Accuracy, Forecast, Hedge_Decision sheets).
+function daysInMonth(key){const [y,m]=key.split('-').map(Number);return new Date(y,m,0).getDate();}
+function addMonths(key,k){let [y,m]=key.split('-').map(Number);m+=k;while(m>12){m-=12;y++;}return y+'-'+String(m).padStart(2,'0');}
+
+function solve(A,b){ // Gaussian elimination with partial pivoting
+  const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+  for(let c=0;c<n;c++){
+    let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    [M[c],M[p]]=[M[p],M[c]];
+    if(Math.abs(M[c][c])<1e-12)return null;
+    for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}
+  }
+  return M.map((r,i)=>r[n]/r[i]);
+}
+function inverse(A){const n=A.length;return A.map((_,j)=>solve(A,A.map((_,i)=>i===j?1:0))).reduce((inv,col,j)=>{col.forEach((v,i)=>{inv[i][j]=v;});return inv;},A.map(()=>Array(n).fill(0)));}
+
+function runModel(raw,inp){
+  // raw: [[ 'YYYY-MM', rate, brent, wti ], ...] sorted ascending
+  const rows=raw.map(([d,r,b,w])=>({d,r,b,w,sp:b-w}));
+  rows.forEach((x,i)=>{x.bc=i>0?x.b/rows[i-1].b-1:null;});
+  rows.forEach((x,i)=>{x.set=i<3?'Warm-up':(x.d<=inp.trainEnd?'Train':'Test');});
+  const X=[],Y=[];
+  rows.forEach((x,i)=>{if(x.set==='Train'){const p=rows[i-1];X.push([1,p.r,p.bc,p.sp]);Y.push(x.r);}});
+  const nT=X.length;
+  if(nT<8)return{error:'Not enough training months. Move the training end date later or add more data (need at least 8).'};
+  const XtX=[0,1,2,3].map(i=>[0,1,2,3].map(j=>X.reduce((s,r)=>s+r[i]*r[j],0)));
+  const XtY=[0,1,2,3].map(i=>X.reduce((s,r,k)=>s+r[i]*Y[k],0));
+  const beta=solve(XtX,XtY);
+  if(!beta)return{error:'The regression could not be estimated (the drivers are collinear in the training data).'};
+  const [a,b,c,d]=beta;
+  const yhat=X.map(r=>r.reduce((s,v,i)=>s+v*beta[i],0));
+  const ybar=Y.reduce((s,v)=>s+v,0)/nT;
+  const sse=Y.reduce((s,v,i)=>s+(v-yhat[i])**2,0), sst=Y.reduce((s,v)=>s+(v-ybar)**2,0);
+  const r2=1-sse/sst, seReg=Math.sqrt(sse/(nT-4));
+  const inv=inverse(XtX), se=inv.map((r,i)=>Math.sqrt(r[i]*seReg**2));
+  const avgSpread=rows.reduce((s,x)=>s+x.sp,0)/rows.length;
+  const longRun=(1-b)===0?null:(a+d*avgSpread)/(1-b);
+
+  // one-month-ahead forecasts
+  rows.forEach((x,i)=>{
+    if(x.set==='Warm-up')return;
+    const p=rows[i-1];
+    x.naive=p.r; x.ma3=(rows[i-1].r+rows[i-2].r+rows[i-3].r)/3;
+    x.reg=Math.max(inp.floor,a+b*p.r+c*p.bc+d*p.sp);
+  });
+  const test=rows.filter(x=>x.set==='Test'), nTest=test.length;
+  const acc={};
+  if(nTest>0){
+    for(const k of['naive','ma3','reg']){
+      acc[k]={mae:test.reduce((s,x)=>s+Math.abs(x.r-x[k]),0)/nTest,
+              rmse:Math.sqrt(test.reduce((s,x)=>s+(x.r-x[k])**2,0)/nTest),
+              mape:test.reduce((s,x)=>s+Math.abs(x.r-x[k])/x.r,0)/nTest};
+      if(k!=='naive'){acc[k].hit=test.reduce((s,x,j)=>{const prev=rows[rows.indexOf(x)-1].r;return s+(Math.sign(x[k]-prev)===Math.sign(x.r-prev)?1:0);},0)/nTest;}
+    }
+    for(const k of['naive','ma3','reg'])acc[k].skill=1-acc[k].rmse/acc.naive.rmse;
+  }
+  const bandRmse=nTest>0?acc.reg.rmse:seReg;
+
+  // 12-month recursive forecast under 3 oil scenarios
+  const last=rows[rows.length-1];
+  const sc=inp.scen.map(s=>({...s,spreadVal:s.spread===null?avgSpread:s.spread}));
+  const fc=[];
+  const prev=sc.map(()=>null);
+  for(let k=1;k<=12;k++){
+    const key=addMonths(last.d,k), row={k,d:key,days:daysInMonth(key),v:[]};
+    sc.forEach((s,j)=>{
+      const v=k===1?Math.max(inp.floor,a+b*last.r+c*last.bc+d*last.sp)
+                   :Math.max(inp.floor,a+b*prev[j]+c*s.chg+d*s.spreadVal);
+      row.v[j]=v;prev[j]=v;
+    });
+    row.lo=Math.max(inp.floor,row.v[1]-inp.z*bandRmse*Math.sqrt(k));
+    row.hi=row.v[1]+inp.z*bandRmse*Math.sqrt(k);
+    fc.push(row);
+  }
+  const totDays=fc.reduce((s,r)=>s+r.days,0);
+  const avg=j=>fc.reduce((s,r)=>s+r.v[j],0)/12;
+  const tcCost=inp.tc*totDays;
+  const hedge=sc.map((s,j)=>{
+    const spotCost=fc.reduce((t,r)=>t+r.v[j]*r.days,0);
+    return{name:s.name,avg:avg(j),spotCost,tcCost,saving:spotCost-tcCost,p:s.p,w:(spotCost-tcCost)*s.p};
+  });
+  const expSaving=hedge.reduce((s,h)=>s+h.w,0);
+  const loAvg=fc.reduce((s,r)=>s+r.lo,0)/12, hiAvg=fc.reduce((s,r)=>s+r.hi,0)/12;
+  const hiCost=fc.reduce((s,r)=>s+r.hi*r.days,0), loCost=fc.reduce((s,r)=>s+r.lo*r.days,0);
+  return{rows,beta,se,r2,seReg,nT,nTest,acc,longRun,avgSpread,last,fc,totDays,tcCost,hedge,expSaving,
+    wins:hedge.filter(h=>h.saving>0).length,loAvg,hiAvg,hiCost,loCost,bandRmse,
+    probSum:sc.reduce((s,x)=>s+x.p,0)};
+}
+
+// Average 12-month spot forecast for a single constant-oil path (used by the hedge map).
+function pathAvg(m,inp,chg,spread){
+  const [a,b,c,d]=m.beta,last=m.last;let prev=null,tot=0,days=0;
+  for(let k=1;k<=12;k++){
+    const key=addMonths(last.d,k);
+    const v=k===1?Math.max(inp.floor,a+b*last.r+c*last.bc+d*last.sp):Math.max(inp.floor,a+b*prev+c*chg+d*spread);
+    prev=v;tot+=v*daysInMonth(key);days+=daysInMonth(key);
+  }
+  return tot/days;
+}
+if(typeof module!=='undefined')module.exports={runModel,pathAvg};
+// ---------- UI ----------
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem('vlcc.'+k);return v===null?d:JSON.parse(v);}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem('vlcc.'+k,JSON.stringify(v));}catch(e){}},
+  del(k){try{localStorage.removeItem('vlcc.'+k);}catch(e){}}};
+const DEFAULTS={anchor:null,tc:45000,p:[25,50,25],c:[-3,0,2],s:[6,null,2.5],z:1.645,floor:10000,trainEnd:'2023-12'};
+const NAMES=['Oil falls / wide spread','Base case','Oil rises / narrow spread'];
+const COL={s1:'#2a78d6',s2:'#eb6834',s3:'#1baf7a',s4:'#eda100',pos:'#2a78d6',neg:'#e34948',mid:'#f0efec',ref:'#52514e',grid:'#ecebe7'};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const mlab=k=>{const[y,m]=k.split('-');return MON[+m-1]+' '+y;};
+const f$=n=>(n<0?'−':'')+'$'+Math.abs(Math.round(n)).toLocaleString('en-US');
+const fM=n=>(n>=0?'+':'−')+'$'+(Math.abs(n)>=1e6?(Math.abs(n)/1e6).toFixed(2)+'M':(Math.abs(n)/1e3).toFixed(0)+'K');
+const fP=n=>(n*100).toFixed(1)+'%';
+
+let data=SAMPLE.slice(),source='sample',LIVE=null;
+let inp=Object.assign({},DEFAULTS,store.get('inputs',{}));
+let charts={},M=null,view='chart';
+
+function readInputs(){
+  inp.tc=+$('tc').value;
+  inp.p=[0,1,2].map(i=>+$('p'+i).value||0);
+  inp.c=[0,1,2].map(i=>+$('c'+i).value||0);
+  inp.s=[+$('s0').value,null,+$('s2').value];
+  inp.z=+$('z').value;inp.floor=+$('floor').value||0;
+  inp.trainEnd=$('trainEnd').value||DEFAULTS.trainEnd;
+  if(LIVE){const v=+$('anchor').value;if(v>0&&v!==inp.anchor){inp.anchor=v;if(source==='live')data=liveRows();}}
+  store.set('inputs',inp);
+}
+function writeInputs(){
+  $('tc').value=inp.tc;[0,1,2].forEach(i=>{$('p'+i).value=inp.p[i];$('c'+i).value=inp.c[i];});
+  $('s0').value=inp.s[0];$('s2').value=inp.s[2];$('z').value=String(inp.z);$('floor').value=inp.floor;$('trainEnd').value=inp.trainEnd;
+  if(LIVE)$('anchor').value=inp.anchor||LIVE.anchor_tce;
+}
+function modelInputs(){
+  return{trainEnd:inp.trainEnd,floor:inp.floor,z:inp.z,tc:inp.tc,
+    scen:[0,1,2].map(i=>({name:NAMES[i],chg:inp.c[i]/100,spread:inp.s[i],p:inp.p[i]/100}))};
+}
+
+Chart.defaults.font.family='"IBM Plex Sans",system-ui,sans-serif';
+Chart.defaults.color='#52514e';
+Chart.defaults.borderColor=COL.grid;
+const moneyAxis={ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'},grid:{color:COL.grid},border:{display:false}};
+function mk(id,cfg){if(charts[id])charts[id].destroy();charts[id]=new Chart($(id),cfg);}
+
+function render(){
+  readInputs();
+  $('tcOut').textContent=f$(inp.tc)+'/day';
+  const ps=inp.p.reduce((a,b)=>a+b,0);
+  $('probSum').textContent='(total '+ps+'%)';$('probSum').style.color=Math.abs(ps-100)<0.01?'var(--muted)':'#b42f2e';
+  renderBanner();
+  const mi=modelInputs();
+  M=runModel(data,mi);
+  if(M.error){$('verdict').innerHTML='<div class="k">Model error</div><div class="why">'+M.error+'</div>';return;}
+  $('s1').value=M.avgSpread.toFixed(2)+' (avg)';
+  renderVerdict(ps);renderForecast();renderSavings();renderMap(mi);renderRules();renderModel();renderDataStats();
+}
+
+function renderVerdict(ps){
+  const hedge=M.expSaving>0, pct=Math.abs(M.expSaving)/M.tcCost;
+  let h='<div class="k">Recommendation · charterer, next 12 months</div>';
+  h+='<div class="big">'+(hedge?'Lock in the time charter':'Stay on the spot market')+' <span class="pill">'+(hedge?'HEDGE':"DON'T HEDGE")+'</span></div>';
+  h+='<div class="why">'+(hedge
+    ?`Weighting the three oil scenarios, locking in at ${f$(inp.tc)}/day is expected to <b>save ${f$(M.expSaving)}</b> over ${M.totDays} days versus paying spot.`
+    :`Weighting the three oil scenarios, locking in at ${f$(inp.tc)}/day is expected to <b>cost ${f$(-M.expSaving)} more</b> over ${M.totDays} days than staying spot.`)
+    +` Locking in wins in <b>${M.wins} of 3</b> scenarios.</div>`;
+  const notes=[];
+  if(Math.abs(ps-100)>0.01)notes.push('⚠ Scenario probabilities add up to '+ps+'%, not 100%. Fix them for a valid expected value.');
+  if(pct<0.05){
+    if(!hedge&&M.hiCost>M.tcCost)notes.push(`Close call: the expected difference is only ${fP(pct)} of the annual charter cost, but if rates finish at the top of the ${inp.z===1.96?95:90}% band, staying spot would cost ${f$(M.hiCost-M.tcCost)} more than the charter. A risk-averse charterer could lock in part of its needs.`);
+    else if(hedge&&M.loCost<M.tcCost)notes.push(`Close call: the expected saving is only ${fP(pct)} of the annual charter cost. If rates finish at the bottom of the band, the charter would cost ${f$(M.tcCost-M.loCost)} more than spot.`);
+  }
+  if(notes.length)h+='<div class="note">'+notes.join('<br><br>')+'</div>';
+  $('verdict').innerHTML=h;
+  const base=M.hedge[1];
+  const st=[
+    ['Expected saving from locking in',fM(M.expSaving),'probability-weighted, 12 months'],
+    ['Break-even average spot rate',f$(inp.tc),'per day; above this, hedging pays'],
+    ['Base-case average spot rate',f$(base.avg),'per day over the next 12 months'],
+    [(inp.z===1.96?'95':'90')+'% range (12-mo average)',f$(M.loAvg)+' – '+f$(M.hiAvg),'base-case uncertainty band'],
+  ];
+  $('stats').innerHTML=st.map(s=>`<div class="stat"><div class="l">${s[0]}</div><div class="v">${s[1]}</div><div class="s">${s[2]}</div></div>`).join('');
+}
+
+function renderForecast(){
+  const hist=M.rows.slice(-36), H=hist.length, L=H+12;
+  const labels=[...hist.map(r=>mlab(r.d)),...M.fc.map(r=>mlab(r.d))];
+  const arr=()=>Array(L).fill(null);
+  const actual=arr();hist.forEach((r,i)=>actual[i]=r.r);
+  const path=j=>{const a=arr();a[H-1]=M.last.r;M.fc.forEach((r,i)=>a[H+i]=r.v[j]);return a;};
+  const lo=arr(),hi=arr(),tc=arr();lo[H-1]=hi[H-1]=M.last.r;tc[H-1]=inp.tc;
+  M.fc.forEach((r,i)=>{lo[H+i]=r.lo;hi[H+i]=r.hi;tc[H+i]=inp.tc;});
+  const ds=(label,d,color,extra)=>Object.assign({label,data:d,borderColor:color,backgroundColor:color,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:0.15,spanGaps:false},extra||{});
+  mk('fcChart',{type:'line',data:{labels,datasets:[
+    ds('Band lower',lo,'rgba(0,0,0,0)',{pointHoverRadius:0}),
+    ds('Uncertainty band',hi,'rgba(0,0,0,0)',{fill:'-1',backgroundColor:'rgba(235,104,52,0.13)',pointHoverRadius:0}),
+    ds('Actual',actual,COL.s1),
+    ds('Base case',path(1),COL.s2),
+    ds('Oil falls / wide spread',path(0),COL.s3,{borderDash:[6,4]}),
+    ds('Oil rises / narrow spread',path(2),COL.s4,{borderDash:[6,4]}),
+    ds('Time-charter rate',tc,COL.ref,{borderDash:[2,3],borderWidth:1.5,pointHoverRadius:0}),
+  ]},options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{boxWidth:14,boxHeight:3,filter:i=>i.text!=='Band lower'&&i.text!=='Uncertainty band'}},
+      tooltip:{filter:i=>i.raw!==null&&i.dataset.label!=='Band lower'&&i.dataset.label!=='Uncertainty band',
+        callbacks:{label:c=>' '+c.dataset.label+': '+f$(c.raw)+'/day',
+          afterBody:items=>{const i=items[0].dataIndex;return i>=H?['Band: '+f$(lo[i])+' – '+f$(hi[i])]:[];}}}},
+    scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12,autoSkip:true}},y:moneyAxis}}});
+  let t='<table><thead><tr><th>Month</th><th>Days</th><th>Oil falls</th><th>Base case</th><th>Oil rises</th><th>Band low</th><th>Band high</th></tr></thead><tbody>';
+  M.fc.forEach(r=>{t+=`<tr><td>${mlab(r.d)}</td><td class="num">${r.days}</td>${r.v.map(v=>`<td class="num">${f$(v)}</td>`).join('')}<td class="num">${f$(r.lo)}</td><td class="num">${f$(r.hi)}</td></tr>`;});
+  t+=`<tr><td><b>12-mo average</b></td><td class="num">${M.totDays}</td>${M.hedge.map(h=>`<td class="num"><b>${f$(h.avg)}</b></td>`).join('')}<td class="num">${f$(M.loAvg)}</td><td class="num">${f$(M.hiAvg)}</td></tr></tbody></table>`;
+  $('fcTableWrap').innerHTML=t;
+}
+
+function renderSavings(){
+  const labels=['Oil falls','Base case','Oil rises','Expected (weighted)'];
+  const vals=[...M.hedge.map(h=>h.saving),M.expSaving].map(v=>v/1e6);
+  mk('savChart',{type:'bar',data:{labels,datasets:[{label:'Saving from locking in',data:vals,
+    backgroundColor:vals.map(v=>v>=0?COL.pos:COL.neg),borderRadius:4,borderSkipped:false,barThickness:26}]},
+    options:{indexAxis:'y',maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>' '+fM(c.raw*1e6)+(c.raw>=0?' (time charter cheaper)':' (spot cheaper)')}}},
+      scales:{x:{ticks:{callback:v=>'$'+v+'M'},grid:{color:COL.grid},border:{display:false}},y:{grid:{display:false}}}}});
+  let t='<table><thead><tr><th>Scenario</th><th>Prob.</th><th>Avg spot</th><th>Spot cost</th><th>Charter cost</th><th>Saving</th></tr></thead><tbody>';
+  M.hedge.forEach(h=>{t+=`<tr><td>${h.name}</td><td class="num">${(h.p*100).toFixed(0)}%</td><td class="num">${f$(h.avg)}</td><td class="num">${fM(h.spotCost).slice(1)}</td><td class="num">${fM(h.tcCost).slice(1)}</td><td class="num ${h.saving>=0?'pos':'neg'}">${fM(h.saving)}</td></tr>`;});
+  t+=`<tr><td colspan="5"><b>Expected saving (probability-weighted)</b></td><td class="num ${M.expSaving>=0?'pos':'neg'}"><b>${fM(M.expSaving)}</b></td></tr></tbody></table>`;
+  t+=`<p style="font-size:.8rem;color:var(--muted);white-space:normal;margin-bottom:0">Charter cost = ${f$(inp.tc)}/day × ${M.totDays} days. Spot cost = forecast rate × days, month by month.</p>`;
+  $('hedgeTable').innerHTML=t;
+}
+
+function mix(a,b,t){const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));const A=p(a),B=p(b);return'rgb('+A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')+')';}
+function renderMap(mi){
+  const chg=[-5,-4,-3,-2,-1,0,1,2,3,4,5], spr=[0,1,2,3,4,5,6,7,8];
+  const grid=chg.map(c=>spr.map(s=>(pathAvg(M,mi,c/100,s)-inp.tc)*M.totDays));
+  const mx=Math.max(...grid.flat().map(Math.abs))||1;
+  const cur=new Set(mi.scen.map(s=>{const sp=s.spread===null?M.avgSpread:s.spread;
+    const ci=chg.reduce((b,c,i)=>Math.abs(c-s.chg*100)<Math.abs(chg[b]-s.chg*100)?i:b,0);
+    const si=spr.reduce((b,v,i)=>Math.abs(v-sp)<Math.abs(spr[b]-sp)?i:b,0);return ci+'-'+si;}));
+  const el=$('hedgeMap');el.style.gridTemplateColumns='110px repeat('+spr.length+',minmax(64px,1fr))';
+  let h='<div class="hdr" style="text-align:left">Brent / month ↓<br>Spread →</div>'+spr.map(s=>`<div class="hdr">$${s}</div>`).join('');
+  chg.forEach((c,ci)=>{
+    h+=`<div class="hdr" style="text-align:left">${c>0?'+':''}${c}%${c===0?' (flat)':''}</div>`;
+    spr.forEach((s,si)=>{const v=grid[ci][si],t=Math.min(1,Math.abs(v)/mx)*0.85+0.15;
+      const bg=mix('#f0efec',v>=0?COL.pos:COL.neg,t),fg=t>0.55?'#fff':'#0b0b0b';
+      h+=`<div class="cell${cur.has(ci+'-'+si)?' cur':''}" style="background:${bg};color:${fg}" title="Brent ${c>0?'+':''}${c}%/month, spread $${s}: average spot ${f$(v/M.totDays+inp.tc)}/day → ${v>=0?'lock in':'stay spot'} (${fM(v)})"><b>${v>=0?'Lock':'Spot'}</b><br>${(v/1e6).toFixed(1)}</div>`;});
+  });
+  el.innerHTML=h;
+}
+
+function renderRules(){
+  const [a,b,c,d]=M.beta, base=M.hedge[1];
+  const wAvg=M.hedge.reduce((s,h)=>s+h.avg*h.p,0)/(M.hedge.reduce((s,h)=>s+h.p,0)||1);
+  const drop10=-c*0.10;
+  const r=[];
+  r.push(['Lock in when the expected spot rate beats the charter rate',
+    'Hedging is worth it when the average spot rate you expect to pay over the year is above the rate you can lock in today.',
+    `Probability-weighted average spot: <b>${f$(wAvg)}/day</b> vs charter <b>${f$(inp.tc)}/day</b> → ${wAvg>inp.tc?'<b>hedge</b>':'<b>stay spot</b>'}.`]);
+  r.push(['Watch the oil market: it drives tanker demand',
+    `In this data, ${c<0?'falling':'rising'} oil prices push VLCC rates up the next month (contango and floating storage), and a ${d>0?'wider':'narrower'} Brent–WTI spread does too (more long-haul U.S. exports).`,
+    `A 10% drop in Brent changes next month's rate by about <b>${drop10>=0?'+':'−'}${f$(Math.abs(drop10))}/day</b>; each extra $1/bbl of spread adds <b>${f$(d)}/day</b>. ${c<0&&d>0?'So falling oil with a wide spread = lean toward hedging.':''}`]);
+  r.push(['Rates drift back toward a long-run level',
+    `Only ${(b*100).toFixed(0)}% of last month's rate carries into this month, so spikes fade. Locking in near the top of a spike is usually expensive.`,
+    `Last actual rate ${f$(M.last.r)}/day vs long-run level ${M.longRun?f$(M.longRun):'n/a'}/day. ${M.longRun&&M.last.r>M.longRun?'Rates are above normal and expected to fall, which favours staying spot.':'Rates are at or below normal, which favours locking in.'}`]);
+  const up=M.hiCost-M.tcCost, cost=-M.expSaving;
+  r.push(['Hedge for protection if a price spike would hurt',
+    'Even when hedging is expected to cost a little, it can be worth it if your budget cannot absorb a freight spike. That is buying insurance.',
+    up>0?`If rates hit the top of the band, staying spot costs <b>${fM(up).slice(1)}</b> more than the charter. ${cost>0?`The expected cost of that insurance is <b>${fM(cost).slice(1)}</b>.`:'And hedging is already expected to save money.'}`:'Even at the top of the band, spot stays cheaper than this charter rate.']);
+  const sk=M.nTest?M.acc.reg.skill:null;
+  r.push(['Trust the forecast only as far as it has earned it',
+    'Compare the model with a naive guess ("next month = this month"). If it can\'t beat that, lean on the market price rather than the forecast.',
+    sk===null?'No test months yet: move the training end date earlier.':sk>0?`The regression beats the naive guess by <b>${fP(sk)}</b> (RMSE) on unseen months.`:`The regression does <b>not</b> beat the naive guess on unseen months, so treat the recommendation with caution.`]);
+  r.push(['The further out, the less certain',
+    'Forecast errors compound month after month, so the uncertainty band widens with the horizon. A long lock-in removes more risk than a short one.',
+    `By month 12 the base-case band runs from <b>${f$(M.fc[11].lo)}</b> to <b>${f$(M.fc[11].hi)}</b> per day.`]);
+  $('rules').innerHTML=r.map(x=>`<div class="rule"><h3>${x[0]}</h3><div style="font-size:.9rem;color:var(--ink2)">${x[1]}</div><div class="now"><b>Right now:</b> ${x[2]}</div></div>`).join('');
+}
+
+function renderModel(){
+  const terms=[['a  Intercept','Baseline level of the equation.'],['b  Rate t−1',"Share of last month's rate carried into this month."],
+    ['c  Brent % chg t−1','$/day effect of a 100% Brent move last month (× 0.10 for a 10% move).'],['d  Spread t−1','$/day effect of each extra $1/bbl Brent–WTI spread.']];
+  let t='<h3>Regression (training period)</h3><table><thead><tr><th>Term</th><th>Coef.</th><th>Std. err.</th><th>t-stat</th></tr></thead><tbody>';
+  terms.forEach((x,i)=>{const tt=M.beta[i]/M.se[i];t+=`<tr title="${x[1]}"><td>${x[0]}</td><td class="num">${M.beta[i].toLocaleString('en-US',{maximumFractionDigits:i===1?3:0})}</td><td class="num">${M.se[i].toLocaleString('en-US',{maximumFractionDigits:i===1?3:0})}</td><td class="num">${tt.toFixed(2)}${Math.abs(tt)>2?' ✓':''}</td></tr>`;});
+  t+=`</tbody></table><p style="font-size:.85rem;color:var(--ink2);white-space:normal">R² <b>${M.r2.toFixed(3)}</b> · Std. error ${f$(M.seReg)}/day · ${M.nT} training months · Long-run rate ${M.longRun?f$(M.longRun):'n/a'}/day. ✓ = |t| above 2 (statistically meaningful).</p>`;
+  $('coefTable').innerHTML=t;
+  if(!M.nTest){$('accTable').innerHTML='<h3>Out-of-sample accuracy</h3><p>No test months: move the training end date earlier.</p>';return;}
+  const A=M.acc,rows=[['Naive (next = this month)',A.naive],['3-month moving average',A.ma3],['Regression',A.reg]];
+  const best=rows.reduce((b,r)=>r[1].rmse<b[1].rmse?r:b);
+  let u=`<h3>Out-of-sample accuracy · ${M.nTest} test months</h3><table><thead><tr><th>Model</th><th>MAE</th><th>RMSE</th><th>MAPE</th><th>Direction</th><th>Skill</th></tr></thead><tbody>`;
+  rows.forEach(r=>{u+=`<tr${r===best?' style="font-weight:700"':''}><td>${r[0]}</td><td class="num">${f$(r[1].mae)}</td><td class="num">${f$(r[1].rmse)}</td><td class="num">${fP(r[1].mape)}</td><td class="num">${r[1].hit===undefined?'n/a':fP(r[1].hit)}</td><td class="num">${fP(r[1].skill)}</td></tr>`;});
+  u+=`</tbody></table><p style="font-size:.85rem;color:var(--ink2);white-space:normal">Best by RMSE: <b>${best[0]}</b>. Skill = 1 − RMSE ÷ naive RMSE; positive means the model adds value over last month's rate.</p>`;
+  $('accTable').innerHTML=u;
+  const test=M.rows.filter(r=>r.set==='Test');
+  const ds=(label,d,color,extra)=>Object.assign({label,data:d,borderColor:color,backgroundColor:color,borderWidth:2,pointRadius:0,pointHoverRadius:5,tension:0.15},extra||{});
+  mk('testChart',{type:'line',data:{labels:test.map(r=>mlab(r.d)),datasets:[
+    ds('Actual',test.map(r=>r.r),COL.s1),ds('Regression forecast',test.map(r=>r.reg),COL.s2),ds('Naive forecast',test.map(r=>r.naive),COL.s3,{borderDash:[6,4]})]},
+    options:{maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:14,boxHeight:3}},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': '+f$(c.raw)+'/day'}}},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:12}},y:moneyAxis}}});
+}
+
+function renderBanner(){
+  const b=$('simBanner');b.className='banner show'+(source==='sample'?'':' info');
+  if(source==='sample')b.innerHTML="⚠ Showing the workbook's <b>simulated</b> data. The live data file wasn't found: it appears after the first scheduled update runs, and it won't load if you open this file straight from your computer.";
+  else if(source==='live')b.innerHTML=`● <b>Live data</b> from FRED, refreshed daily. Freight = U.S. deep-sea freight price index (a proxy, not VLCC-only), scaled so its average = ${f$(inp.anchor||LIVE.anchor_tce)}/day.`;
+  else b.innerHTML='Using the data you uploaded (this tab only). <a href="#data" style="color:#d4e6fb">Switch back to live data</a>.';
+  $('anchorWrap').style.display=source==='live'?'':'none';
+  const st=$('strip');
+  if(!LIVE){st.innerHTML='';return;}
+  const d=LIVE.daily||{},chips=[];
+  if(d.brent)chips.push(`<span class="chip"><span class="live"></span>Brent <b>$${d.brent.value.toFixed(2)}</b> · ${fmtDay(d.brent.date)}</span>`);
+  if(d.wti)chips.push(`<span class="chip">WTI <b>$${d.wti.value.toFixed(2)}</b> · ${fmtDay(d.wti.date)}</span>`);
+  if(d.brent&&d.wti)chips.push(`<span class="chip">Brent–WTI spread <b>$${(d.brent.value-d.wti.value).toFixed(2)}</b></span>`);
+  const lm=LIVE.monthly[LIVE.monthly.length-1];
+  chips.push(`<span class="chip">Freight index <b>${lm[1].toFixed(1)}</b> · ${mlab(lm[0])}</span>`);
+  st.innerHTML=chips.join('');
+}
+function fmtDay(s){const[y,m,d]=s.split('-');return MON[+m-1]+' '+(+d)+', '+y;}
+
+function renderDataStats(){
+  const last=data[data.length-1];
+  const lead={live:'This page refreshes itself every morning from free public data, so the forecast and the recommendation always use the latest released month.',
+    sample:"The live data file hasn't been created yet, so the workbook's simulated data is shown.",
+    custom:'You are viewing your uploaded data. Use "Back to live data" to return.'}[source];
+  $('dataLead').textContent=lead;
+  const st=[['Data in use',{live:'Live (FRED)',sample:'Simulated',custom:'Your upload'}[source],data.length+' months'],
+    ['Latest month',mlab(last[0]),f$(last[1])+'/day'],
+    ['Last refreshed',LIVE&&LIVE.updated?new Date(LIVE.updated).toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}):'—',LIVE&&LIVE.updated?'data changed '+new Date(LIVE.updated).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'no live file yet'],
+    ['Range',mlab(data[0][0]),'to '+mlab(last[0])]];
+  $('dataStats').innerHTML=st.map(s=>`<div class="stat"><div class="l">${s[0]}</div><div class="v" style="font-size:1.1rem">${s[1]}</div><div class="s">${s[2]}</div></div>`).join('');
+  const src=LIVE?LIVE.sources:{freight_index:'Simulated (workbook Data sheet)',brent:'Simulated',wti:'Simulated'};
+  const la=LIVE?LIVE.latest_available:{};
+  $('srcTable').innerHTML='<thead><tr><th>Series</th><th style="text-align:left">Source</th><th>Latest</th></tr></thead><tbody>'+
+    [['VLCC earnings','freight_index'],['Brent','brent'],['WTI','wti']].map(([n,k])=>`<tr><td>${n}</td><td style="text-align:left;white-space:normal;font-size:.8rem">${src[k]}</td><td class="num">${la[k]?mlab(la[k]):'—'}</td></tr>`).join('')+'</tbody>';
+}
+
+// ---------- data ----------
+function liveRows(){
+  const rows=LIVE.monthly,mean=rows.reduce((s,r)=>s+r[1],0)/rows.length,k=(inp.anchor||LIVE.anchor_tce)/mean;
+  return rows.map(r=>[r[0],Math.round(r[1]*k),r[2],r[3]]);
+}
+function parseMonth(s){
+  s=String(s).trim().replace(/"/g,'');let m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})(-\d{1,2})?/)))return m[1]+'-'+m[2].padStart(2,'0');
+  if((m=s.match(/^(\d{1,2})\/\d{1,2}\/(\d{2,4})$/))){const y=m[2].length===2?'20'+m[2]:m[2];return y+'-'+m[1].padStart(2,'0');}
+  if((m=s.match(/^([A-Za-z]{3})[a-z]*[-\s'](\d{2,4})$/))){const i=MON.findIndex(x=>x.toLowerCase()===m[1].toLowerCase());if(i<0)return null;const y=m[2].length===2?'20'+m[2]:m[2];return y+'-'+String(i+1).padStart(2,'0');}
+  return null;
+}
+function parseCSV(text){
+  const out={};let bad=0;
+  text.split(/\r?\n/).forEach(line=>{
+    if(!line.trim())return;const p=line.split(/[,\t;]/);if(p.length<4){bad++;return;}
+    const d=parseMonth(p[0]),r=+p[1],b=+p[2],w=+p[3];
+    if(!d||!isFinite(r)||!isFinite(b)||!isFinite(w)||p[1].trim()===''){bad++;return;}
+    out[d]=[d,r,b,w];
+  });
+  return{rows:Object.values(out).sort((x,y)=>x[0]<y[0]?-1:1),bad};
+}
+function loadCSV(text){
+  const {rows,bad}=parseCSV(text);
+  if(rows.length<20){status('csvStatus','Found only '+rows.length+' valid rows. Need at least 20 months in the layout date, vlcc_tce, brent, wti.','err');return;}
+  data=rows;source='custom';render();
+  status('csvStatus',`Loaded ${rows.length} months (${mlab(rows[0][0])} – ${mlab(rows[rows.length-1][0])})${bad?`, skipped ${bad} header/invalid row${bad>1?'s':''}`:''}.`,'ok');
+}
+function status(id,msg,cls){const e=$(id);e.textContent=msg;e.className='status'+(cls?' '+cls:'');}
+async function loadLive(){
+  try{
+    const res=await fetch('data/data.json',{cache:'no-store'});
+    if(!res.ok)throw new Error(res.status);
+    const js=await res.json();
+    if(!js.monthly||js.monthly.length<20)throw new Error('too short');
+    LIVE=js;if(!inp.anchor)inp.anchor=js.anchor_tce;
+    $('anchor').value=inp.anchor;
+    if(source!=='custom'){data=liveRows();source='live';}
+  }catch(e){LIVE=null;}
+  render();
+}
+
+// ---------- wire up ----------
+writeInputs();
+['tc','p0','p1','p2','c0','c2','s0','s2','z','floor','trainEnd','anchor'].forEach(id=>$(id).addEventListener('input',render));
+$('resetInputs').onclick=()=>{const a=LIVE?LIVE.anchor_tce:null;inp=Object.assign({},DEFAULTS,{anchor:a});writeInputs();if(source==='live')data=liveRows();render();};
+document.querySelectorAll('.tabbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabbtn').forEach(x=>x.classList.toggle('on',x===b));
+  const tbl=b.dataset.view==='table';$('fcChartWrap').style.display=tbl?'none':'';$('fcTableWrap').style.display=tbl?'':'none';});
+$('csvFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>loadCSV(r.result);r.readAsText(f);};
+$('pasteToggle').onclick=()=>{const b=$('pasteBox');b.style.display=b.style.display==='none'?'':'none';};
+$('loadPaste').onclick=()=>loadCSV($('csvText').value);
+$('resetData').onclick=()=>{if(LIVE){data=liveRows();source='live';status('csvStatus','Back to live data.','ok');}else{data=SAMPLE.slice();source='sample';status('csvStatus','No live data file yet, so showing the workbook sample.','ok');}$('csvFile').value='';render();};
+render();
+loadLive();
+</script>
+</body></html>
